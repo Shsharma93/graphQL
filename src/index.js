@@ -1,50 +1,56 @@
 import { GraphQLServer } from 'graphql-yoga';
+const uuid = require('uuid/v4');
 
 //Type definition (Schema)
 //Scalar types - ID, String, Int, Boolean, Float
 
 const users = [
-  { id: 1, name: 'John', email: 'john@gmail.com', age: 26 },
-  { id: 2, name: 'Kien', email: 'kien@gmail.com', age: 20 },
-  { id: 3, name: 'Ryan', email: 'ryan@gmail.com', age: 22 },
-  { id: 4, name: 'Mitch', email: 'mitch@gmail.com', age: 24 }
-];
-
-const comments = [
-  { id: 32, text: 'Hey, Whatsaupp', author: 3, post: 12 },
-  { id: 33, text: 'Winter is coming', author: 2, post: 10 },
-  { id: 44, text: 'Just do it', author: 1, post: 11 },
-  { id: 55, text: 'Well Done guys, see you tomorrow', author: 1, post: 13 }
+  { id: '1', name: 'John', email: 'john@gmail.com', age: '26' },
+  { id: '2', name: 'Kien', email: 'kien@gmail.com', age: '20' },
+  { id: '3', name: 'Ryan', email: 'ryan@gmail.com', age: '22' },
+  { id: '4', name: 'Mitch', email: 'mitch@gmail.com', age: '24' }
 ];
 
 const posts = [
   {
-    id: 10,
+    id: '10',
     title: 'Good Morning',
     body: 'Good Morning! Have a great day?',
     published: true,
-    author: 1
+    author: '1'
   },
   {
-    id: 11,
+    id: '11',
     title: 'Good Afternoon',
     body: 'Good Afternoon! Whats going on?',
     published: true,
-    author: 4
+    author: '4'
   },
   {
-    id: 12,
+    id: '12',
     title: 'Good Evening',
     body: 'Good Evening! Hows your day?',
     published: false,
-    author: 2
+    author: '2'
   },
   {
-    id: 13,
+    id: '13',
     title: 'Good Night',
     body: 'Good night',
     published: true,
-    author: 3
+    author: '3'
+  }
+];
+
+const comments = [
+  { id: '32', text: 'Hey, Whatsaupp', author: '3', post: '12' },
+  { id: '33', text: 'Winter is coming', author: '2', post: '10' },
+  { id: '44', text: 'Just do it', author: '1', post: '11' },
+  {
+    id: '55',
+    text: 'Well Done guys, see you tomorrow',
+    author: '1',
+    post: '13'
   }
 ];
 
@@ -57,11 +63,10 @@ const typeDefs = `
     comments: [Comment!]!
   }
 
-  type Comment {
-    id: ID!
-    text: String!
-    author: User!
-    post: Post!
+  type Mutation {
+    createUser(data: createUserInput!): User!
+    createPost(data: createPostInput! ): Post!
+    createComment(data: createCommentInput!): Comment!
   }
 
   type User {
@@ -73,6 +78,12 @@ const typeDefs = `
     comments: [Comment!]!
   }
 
+  input createUserInput {
+    name: String!,
+    email: String!,
+    age: Int
+  }
+
   type Post {
     id: ID!
     title: String!
@@ -81,6 +92,27 @@ const typeDefs = `
     author: User!
     comments: [Comment!]!
   }
+
+  input createPostInput {
+    title: String!
+    body: String! 
+    published: Boolean! 
+    author: ID!
+  }
+
+  type Comment {
+    id: ID!
+    text: String!
+    author: User!
+    post: Post!
+  }
+
+  input createCommentInput {
+    text: String!
+    author: ID!
+    post: ID!
+  }
+  
 `;
 
 //Resolver
@@ -96,7 +128,7 @@ const resolvers = {
     },
     post() {
       return {
-        id: 1234,
+        id: '1234',
         title: 'GraphQL',
         body: 'Welcome to GraphQL bootcamp',
         published: true
@@ -128,16 +160,55 @@ const resolvers = {
       });
     }
   },
-  Post: {
-    author(parent, args, ctx, info) {
-      return users.find(user => {
-        return user.id === parent.author;
-      });
+  Mutation: {
+    createUser(parent, args, ctx, info) {
+      const emailTaken = users.some(user => user.email === args.data.email);
+      if (emailTaken) {
+        throw new Error('Email Taken');
+      }
+
+      const user = {
+        id: uuid(),
+        ...args.data
+      };
+      users.push(user);
+      return user;
     },
-    comments(parent, args, ctx, info) {
-      return comments.filter(comment => {
-        return comment.post === parent.id;
-      });
+    createPost(parent, args, ctx, info) {
+      const userExists = users.some(user => user.id === args.data.author);
+
+      if (!userExists) {
+        throw new Error('User not found');
+      }
+
+      const post = {
+        id: uuid(),
+        ...args.data
+      };
+
+      posts.push(post);
+      return post;
+    },
+    createComment(parent, args, ctx, info) {
+      const userExists = users.some(user => user.id === args.data.author);
+      if (!userExists) {
+        throw new Error('User not found');
+      }
+
+      const postExist = posts.some(
+        post => post.id === args.data.post && post.published
+      );
+      if (!postExist) {
+        throw new Error('Post not found');
+      }
+
+      const comment = {
+        id: uuid(),
+        ...args.data
+      };
+
+      comments.push(comment);
+      return comment;
     }
   },
   User: {
@@ -149,6 +220,18 @@ const resolvers = {
     comments(parent, args, ctx, info) {
       return comments.filter(comment => {
         return comment.author === parent.id;
+      });
+    }
+  },
+  Post: {
+    author(parent, args, ctx, info) {
+      return users.find(user => {
+        return user.id === parent.author;
+      });
+    },
+    comments(parent, args, ctx, info) {
+      return comments.filter(comment => {
+        return comment.post === parent.id;
       });
     }
   },
