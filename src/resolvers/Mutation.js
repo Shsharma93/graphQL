@@ -93,7 +93,7 @@ const Mutation = {
     });
     return updatedPost;
   },
-  
+
   createComment(parent, args, { db }, info) {
     const userExists = db.users.some(user => user.id === args.data.author);
     if (!userExists) {
@@ -124,6 +124,21 @@ const Mutation = {
 
     const deletedComment = db.comments.splice(commentIndex, 1);
     return deletedComment[0];
+  },
+  updateComment(parent, args, { db }, infor) {
+    const { id, data } = args;
+    const commentIndex = db.comments.findIndex(
+      comment => comment.id === args.id
+    );
+
+    if (commentIndex === -1) throw new Error('Comment not found');
+
+    const updatedComment = (db.comments[commentIndex] = {
+      ...db.comments[commentIndex],
+      ...data
+    });
+
+    return updatedComment;
   }
 };
 
